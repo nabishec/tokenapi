@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS Refresh_tokens;
+DROP TABLE IF EXISTS Users;

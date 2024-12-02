@@ -1,0 +1,94 @@
+definitions:
+  models.Response:
+    properties:
+      error:
+        type: string
+      status:
+        type: string
+    type: object
+  models.Tokens:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    required:
+    - access_token
+    - refresh_token
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: nabishec@mail.ru
+  description: API Server for Auth
+  title: Auth Tokens
+  version: "1.0"
+paths:
+  /tokenapi/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Обновление и выдача новых токенов
+      parameters:
+      - description: Tokens
+        in: body
+        name: tokens
+        required: true
+        schema:
+          $ref: '#/definitions/models.Tokens'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tokens created successful
+          schema:
+            $ref: '#/definitions/models.Tokens'
+        "400":
+          description: Incorrect request
+          schema:
+            $ref: '#/definitions/models.Response'
+        "403":
+          description: Failed to determine IP
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: Server error(failed create tokens)
+          schema:
+            $ref: '#/definitions/models.Response'
+      summary: Post Refresh Token
+      tags:
+      - auth
+  /tokenapi/v1/auth/token:
+    post:
+      consumes:
+      - application/json
+      description: Генерация и выдача access и refresh токенов для клиента.
+      parameters:
+      - description: GUID user
+        in: query
+        name: client_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tokens created successful
+          schema:
+            $ref: '#/definitions/models.Tokens'
+        "400":
+          description: Incorrect value of user id
+          schema:
+            $ref: '#/definitions/models.Response'
+        "403":
+          description: Failed to determine IP
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: Server error(failed create tokens)
+          schema:
+            $ref: '#/definitions/models.Response'
+      summary: Post New Tokens
+      tags:
+      - auth
+swagger: "2.0"

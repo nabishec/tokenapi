@@ -1,0 +1,144 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API Server for Auth",
+        "title": "Auth Tokens",
+        "contact": {
+            "email": "nabishec@mail.ru"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "paths": {
+        "/tokenapi/v1/auth/refresh": {
+            "post": {
+                "description": "Обновление и выдача новых токенов",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Post Refresh Token",
+                "parameters": [
+                    {
+                        "description": "Tokens",
+                        "name": "tokens",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Tokens"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tokens created successful",
+                        "schema": {
+                            "$ref": "#/definitions/models.Tokens"
+                        }
+                    },
+                    "400": {
+                        "description": "Incorrect request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Failed to determine IP",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error(failed create tokens)",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/tokenapi/v1/auth/token": {
+            "post": {
+                "description": "Генерация и выдача access и refresh токенов для клиента.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Post New Tokens",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GUID user",
+                        "name": "client_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tokens created successful",
+                        "schema": {
+                            "$ref": "#/definitions/models.Tokens"
+                        }
+                    },
+                    "400": {
+                        "description": "Incorrect value of user id",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Failed to determine IP",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error(failed create tokens)",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.Response": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Tokens": {
+            "type": "object",
+            "required": [
+                "access_token",
+                "refresh_token"
+            ],
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

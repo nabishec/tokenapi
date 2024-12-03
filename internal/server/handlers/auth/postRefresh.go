@@ -13,13 +13,17 @@ import (
 	"github.com/go-chi/render"
 
 	"github.com/google/uuid"
+	"github.com/nabishec/tokenapi/internal/client/notification"
+	"github.com/nabishec/tokenapi/internal/lib"
 	"github.com/nabishec/tokenapi/internal/models"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 type PostRefresh interface {
 	AddNewToken(refHash string, userGUID uuid.UUID, userIP string, jti string, exp time.Time) error
 	GetAndDeleteToken(userID string) (refHash string, userIP string, jti string, exp time.Time, err error)
+	GetMail(userID uuid.UUID) (string, error)
 }
 
 type TokenRefresh struct {
@@ -50,7 +54,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	userIP, err := GetIP(r)
 	if err != nil {
-		logs.Error().Msg("Failed to determine user IP")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to determine user IP")
 
 		w.WriteHeader(http.StatusForbidden) // 403
 		render.JSON(w, r, models.StatusError("failed to determine IP"))
@@ -85,7 +89,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// check access token
 	accessToken, err := JWTTokenValid(req.AccessToken)
 	if err != nil && err != ErrAccessTokenExpired || accessToken == nil {
-		logs.Error().Err(err).Msg("Invalid access token")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Invalid access token")
 
 		w.WriteHeader(http.StatusBadRequest) // 400
 		render.JSON(w, r, models.StatusError("invalid access token"))
@@ -95,7 +99,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	//decode refresh
 	refreshDecoded, err := DecodeRefresh(req.RefreshToken)
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed decoded refresh token")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed decoded refresh token")
 
 		w.WriteHeader(http.StatusBadRequest) // 400
 		render.JSON(w, r, models.StatusError("invalid refresh token"))
@@ -106,7 +110,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	//check refresh in bd
 	refreshToken, refHash, err := h.GetRefreshTokenFromDB(accessToken.Subject)
 	if err != nil {
-		logs.Error().Err(err).Msg("Refresh token not found")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Refresh token not found")
 
 		w.WriteHeader(http.StatusBadRequest) // 400
 		render.JSON(w, r, models.StatusError("invalid refresh token"))
@@ -116,7 +120,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	err = CheckRefHash(*refHash, refreshDecoded)
 	if err != nil {
-		logs.Error().Err(err).Msg("Refresh token hash not valid")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Refresh token hash not valid")
 
 		w.WriteHeader(http.StatusBadRequest) // 400
 		render.JSON(w, r, models.StatusError("invalid refresh token"))
@@ -126,7 +130,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	userIPInRefTok, err := DecodeUserIPFromRefTok(refreshDecoded)
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to decode refresh token")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to decode refresh token")
 
 		w.WriteHeader(http.StatusBadRequest) // 400
 		render.JSON(w, r, models.StatusError("invalid refresh token"))
@@ -135,8 +139,11 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	log.Debug().Msgf("Ip from refresh payload received - %s", userIPInRefTok)
 
 	if userIPInRefTok != refreshToken.UserIP || userIPInRefTok != userIP {
-		logs.Error().Err(err).Msg("Invalid IP")
-		//TODO: WARN MESSAGE
+		logs.Error().Msg("Invalid IP")
+		err = h.WarnMessage(accessToken.Subject, logs)
+		if err != nil {
+			logs.Error().Err(err).Msgf("Failed send warn message to user - %s", accessToken.Subject) //
+		}
 		w.WriteHeader(http.StatusBadRequest) // 400
 		render.JSON(w, r, models.StatusError("Unknown IP"))
 		return
@@ -144,7 +151,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	NewAccessToken, jti, err := CreateAccessToken(accessToken.Subject, userIP)
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to create access-token")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to create access-token")
 
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to create access-token"))
@@ -164,7 +171,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	NewRefHash, err := CreateHashRef(NewRefreshToken)
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to create refresh hash")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to create refresh hash")
 
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to create refresh-token"))
@@ -175,7 +182,7 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	expRef := time.Now().Unix() + 86400 // one day
 	err = h.postRefresh.AddNewToken(NewRefHash, uuid.MustParse(accessToken.Subject), userIP, jti, time.Unix(expRef, 0))
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to save refresh hash")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to save refresh hash")
 
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to save refresh-token"))
@@ -207,5 +214,21 @@ func (h *TokenRefresh) GetRefreshTokenFromDB(userGUIDFromAccessToken string) (*J
 	}
 
 	return &claims, &refHashFromDB, nil
+
+}
+
+func (h *TokenRefresh) WarnMessage(userGUID string, logs zerolog.Logger) error {
+	userMail, err := h.postRefresh.GetMail(uuid.MustParse(userGUID))
+	if err != nil {
+		return err
+	}
+	logs.Debug().Msgf("User mail received successful - %s", userMail)
+	err = notification.SendMessage(userMail)
+	if err != nil {
+		return err
+	}
+
+	logs.Debug().Msg("Warn Message send successful")
+	return nil
 
 }

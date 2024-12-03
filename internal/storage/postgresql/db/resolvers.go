@@ -50,7 +50,7 @@ func (r *Database) GetAndDeleteToken(userGUID string) (refHash string, userIP st
 	err = r.DB.QueryRow(queryGetParam, userGUID).Scan(&tokenID, &refHash, &userIP, &jti, &exp)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			err = fmt.Errorf("%s:%w", op, ErrTokenNotExists)
+			err = ErrTokenNotExists
 			return
 		}
 		err = fmt.Errorf("%s:%w", op, err)
@@ -78,7 +78,22 @@ func (r *Database) userExist(userID uuid.UUID) error {
 		return fmt.Errorf("%s:%w", op, err)
 	}
 	if userNumber == 0 {
-		return fmt.Errorf("%s:%w", op, ErrUserNotExists)
+		return ErrUserNotExists
 	}
 	return nil
+}
+
+func (r *Database) GetMail(userID uuid.UUID) (string, error) {
+	const op = "internal.storage.postgresql.db.GetMail()"
+	var userMail string
+	query := "SELECT user_mail FROM Users WHERE user_id = $1"
+
+	err := r.DB.QueryRow(query, userID).Scan(&userMail)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return "", ErrUserNotExists
+		}
+		return "", fmt.Errorf("%s:%w", op, err)
+	}
+	return userMail, nil
 }

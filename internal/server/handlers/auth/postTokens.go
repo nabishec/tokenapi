@@ -7,7 +7,9 @@ import (
 	"github.com/go-chi/render"
 
 	"github.com/google/uuid"
+	"github.com/nabishec/tokenapi/internal/lib"
 	"github.com/nabishec/tokenapi/internal/models"
+	"github.com/nabishec/tokenapi/internal/storage/postgresql/db"
 	"github.com/rs/zerolog/log"
 )
 
@@ -52,7 +54,7 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 
 	userIP, err := GetIP(r)
 	if err != nil {
-		logs.Error().Msg("Failed to determine user IP")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to determine user IP")
 
 		w.WriteHeader(http.StatusForbidden) // 403
 		render.JSON(w, r, models.StatusError("failed to determine IP"))
@@ -62,7 +64,7 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 
 	accessToken, jti, err := CreateAccessToken(userGUID, userIP)
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to create access-token")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to create access-token")
 
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to create access-token"))
@@ -72,7 +74,7 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 
 	refreshToken, err := CreateRefreshToken(userIP)
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to create refresh-token")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to create refresh-token")
 
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to create refresh-token"))
@@ -82,7 +84,7 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 
 	refHash, err := CreateHashRef(refreshToken)
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to create refresh hash")
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to create refresh hash")
 
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to create refresh-token"))
@@ -93,8 +95,11 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 	expRef := time.Now().Unix() + 86400 // one day
 	err = h.postToken.AddNewToken(refHash, uuid.MustParse(userGUID), userIP, jti, time.Unix(expRef, 0))
 	if err != nil {
-		logs.Error().Err(err).Msg("Failed to save refresh hash")
-
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to save refresh hash")
+		if err == db.ErrUserNotExists {
+			w.WriteHeader(http.StatusBadRequest) // 404
+			render.JSON(w, r, models.StatusError("incorrect value of user id"))
+		}
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to save refresh-token"))
 		return

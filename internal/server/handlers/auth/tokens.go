@@ -22,7 +22,7 @@ type JWTClaims struct {
 }
 
 func CreateAccessToken(userGUID string, userIP string) (string, string, error) {
-
+	const op = "internal.server.handlers.auth.CreateAccessToken()"
 	jti := uuid.New().String()
 	exp := time.Now().Unix() + 900 // 15 minutes
 	claims := JWTClaims{
@@ -38,16 +38,17 @@ func CreateAccessToken(userGUID string, userIP string) (string, string, error) {
 	tokenString, err := token.SignedString(SigningKey)
 
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("%s:%w", op, err)
 	}
-	return tokenString, jti, err
+	return tokenString, jti, nil
 }
 
 func CreateRefreshToken(userIP string) (string, error) {
+	const op = "internal.server.handlers.auth.CreateRefreshToken()"
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, JWTClaims{UserIP: userIP})
 	tokenString, err := token.SignedString(SigningKey)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s:%w", op, err)
 	}
 
 	return tokenString, nil
@@ -59,71 +60,79 @@ func EncodeRefresh(tokenString string) string {
 }
 
 func DecodeRefresh(tokenString string) (string, error) {
+	const op = "internal.server.handlers.auth.DecodeRefresh()"
 	ref, err := base64.RawURLEncoding.DecodeString(tokenString)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s:%w", op, err)
 	}
 	return string(ref), nil
 }
 
 func CreateHashRef(ref string) (string, error) {
+	const op = "internal.server.handlers.auth.CreateHashRef()"
 	str := strings.Split(ref, ".")
 	if len(str) < 3 {
-		return "", fmt.Errorf("invalid refresh token")
+		return "", fmt.Errorf("%s:%s", op, "invalid refresh token")
 	}
 	signature := str[2]
 	log.Debug().Msgf("signature, %s", signature)
 	refHash, err := bcrypt.GenerateFromPassword([]byte(signature), bcrypt.MinCost)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s:%w", op, err)
 	}
 	return string(refHash), nil
 
 }
 
 func CheckRefHash(refHash string, refToken string) error {
+	const op = "internal.server.handlers.auth.CheckRefHash()"
 	str := strings.Split(refToken, ".")
 	if len(str) < 3 {
-		return fmt.Errorf("invalid refresh token")
+		return fmt.Errorf("%s:%s", op, "invalid refresh token")
 	}
 	signature := str[2]
 	err := bcrypt.CompareHashAndPassword([]byte(refHash), []byte(signature))
-	return err
+	if err != nil {
+		return fmt.Errorf("%s:%w", op, err)
+	}
+	return nil
 }
 
 func JWTTokenValid(tokenString string) (*JWTClaims, error) {
+	const op = "internal.server.handlers.auth.JWTTokenValid()"
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("%s:unexpected signing method: %v", op, token.Header["alg"])
 		}
 		return SigningKey, nil
 	})
 	if err != nil {
 		if valErr, ok := err.(*jwt.ValidationError); ok && valErr.Errors == jwt.ValidationErrorExpired {
 			if claims, ok := token.Claims.(*JWTClaims); ok {
-				log.Debug().Any("Token", claims)
+				log.Debug().Any("Token", claims).Msg("DELETE MEEEEEEEEEEEEEEEEEEEEEEeee")
 				return claims, ErrAccessTokenExpired
 			} else {
-				return nil, fmt.Errorf("failed conversion of jwt claims")
+				return nil, fmt.Errorf("%s:%s", op, "failed conversion of jwt claims")
 			}
 		}
 		return nil, err
 	}
 	if !token.Valid {
-		return nil, fmt.Errorf("invalid token")
+		return nil, fmt.Errorf("%s,%s", op, "invalid token")
 	}
 	if claims, ok := token.Claims.(*JWTClaims); ok {
-		log.Debug().Any("Token", claims)
+		log.Debug().Any("Token", claims).Msg("DELETE MEEEEEEEEEEEEEEEEEEEEEEeee")
 		return claims, nil
 	} else {
-		return nil, fmt.Errorf("failed conversion of jwt claims")
+		return nil, fmt.Errorf("%s:%s", op, "failed conversion of jwt claims")
 	}
 }
 
 func DecodeUserIPFromRefTok(refToken string) (string, error) {
+	const op = "internal.server.handlers.auth.DecodeUserIPFromRefTok()"
 	refPayload, err := JWTTokenValid(string(refToken))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s:%w", op, err)
 	}
 
 	userIP := refPayload.UserIP

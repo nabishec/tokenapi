@@ -8,6 +8,7 @@ import (
 )
 
 func GetIP(r *http.Request) (string, error) {
+	op := "internal.server.handlers.auth.GetIP()"
 	//Get IP from the X-REAL-IP header
 	ip := r.Header.Get("X-REAL-IP")
 	netIP := net.ParseIP(ip)
@@ -28,11 +29,11 @@ func GetIP(r *http.Request) (string, error) {
 	//Get IP from RemoteAddr
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s:%w", op, err)
 	}
 	netIP = net.ParseIP(ip)
 	if netIP != nil {
 		return ip, nil
 	}
-	return "", fmt.Errorf("no valid ip found")
+	return "", fmt.Errorf("%s:%s", op, "no valid ip found")
 }

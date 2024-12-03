@@ -16,6 +16,7 @@ import (
 	"github.com/nabishec/tokenapi/internal/client/notification"
 	"github.com/nabishec/tokenapi/internal/lib"
 	"github.com/nabishec/tokenapi/internal/models"
+	"github.com/nabishec/tokenapi/internal/storage/postgresql/db"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -45,6 +46,7 @@ func NewRefresh(postRefresh PostRefresh) TokenRefresh {
 // @Success      200        {object}  models.Tokens    "Tokens created successful"
 // @Failure      400        {object}  models.Response     "Incorrect request"
 // @Failure      403        {object}  models.Response     "Failed to determine IP"
+// @Failure      404        {object}  models.Response     "User not found"
 // @Failure      500        {object}  models.Response     "Server error(failed create tokens)"
 // @Router       /tokenapi/v1/auth/refresh [post]
 func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
@@ -110,10 +112,18 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	//check refresh in bd
 	refreshToken, refHash, err := h.GetRefreshTokenFromDB(accessToken.Subject)
 	if err != nil {
-		logs.Error().AnErr(lib.ErrReader(err)).Msg("Refresh token not found")
+		if err == db.ErrTokenNotExists {
+			log.Error().Msgf("Refresh token of user id - %s not found", accessToken.Subject)
 
-		w.WriteHeader(http.StatusBadRequest) // 400
-		render.JSON(w, r, models.StatusError("invalid refresh token"))
+			w.WriteHeader(http.StatusNotFound) // 404
+			render.JSON(w, r, models.StatusError("refresh token not fount"))
+			return
+		}
+
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Can`t found and delete refresh token not found")
+
+		w.WriteHeader(http.StatusInternalServerError) // 500
+		render.JSON(w, r, models.StatusError("Failed to get payload from refresh token"))
 		return
 	}
 	log.Debug().Msgf("Refresh Token exist in DB, %s", *refHash)
@@ -182,6 +192,12 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	expRef := time.Now().Unix() + 86400 // one day
 	err = h.postRefresh.AddNewToken(NewRefHash, uuid.MustParse(accessToken.Subject), userIP, jti, time.Unix(expRef, 0))
 	if err != nil {
+		if err == db.ErrUserNotExists {
+			log.Error().Msgf("User id - %s not found", accessToken.Subject)
+			w.WriteHeader(http.StatusNotFound) // 404
+			render.JSON(w, r, models.StatusError("user id not fount"))
+			return
+		}
 		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to save refresh hash")
 
 		w.WriteHeader(http.StatusInternalServerError) // 500

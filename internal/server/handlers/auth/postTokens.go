@@ -36,6 +36,7 @@ func NewTokenIssuance(postToken PostToken) TokenIssuance {
 // @Success      200        {object}  models.Tokens    "Tokens created successful"
 // @Failure      400        {object}  models.Response     "Incorrect value of user id"
 // @Failure      403        {object}  models.Response     "Failed to determine IP"
+// @Failure      404        {object}  models.Response     "User not found"
 // @Failure      500        {object}  models.Response     "Server error(failed create tokens)"
 // @Router       /tokenapi/v1/auth/token [post]
 func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
@@ -95,11 +96,13 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 	expRef := time.Now().Unix() + 86400 // one day
 	err = h.postToken.AddNewToken(refHash, uuid.MustParse(userGUID), userIP, jti, time.Unix(expRef, 0))
 	if err != nil {
-		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to save refresh hash")
 		if err == db.ErrUserNotExists {
-			w.WriteHeader(http.StatusBadRequest) // 404
-			render.JSON(w, r, models.StatusError("incorrect value of user id"))
+			log.Error().Msgf("User id - %s not found", userGUID)
+			w.WriteHeader(http.StatusNotFound) // 404
+			render.JSON(w, r, models.StatusError("user id not fount"))
+			return
 		}
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to save refresh hash")
 		w.WriteHeader(http.StatusInternalServerError) // 500
 		render.JSON(w, r, models.StatusError("failed to save refresh-token"))
 		return

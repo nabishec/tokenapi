@@ -60,6 +60,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Response"
                         }
                     },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
                     "500": {
                         "description": "Server error(failed create tokens)",
                         "schema": {
@@ -106,6 +112,12 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Failed to determine IP",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
                         }

@@ -109,7 +109,6 @@ func JWTTokenValid(tokenString string) (*JWTClaims, error) {
 	if err != nil {
 		if valErr, ok := err.(*jwt.ValidationError); ok && valErr.Errors == jwt.ValidationErrorExpired {
 			if claims, ok := token.Claims.(*JWTClaims); ok {
-				log.Debug().Any("Token", claims).Msg("DELETE MEEEEEEEEEEEEEEEEEEEEEEeee")
 				return claims, ErrAccessTokenExpired
 			} else {
 				return nil, fmt.Errorf("%s:%s", op, "failed conversion of jwt claims")
@@ -121,7 +120,6 @@ func JWTTokenValid(tokenString string) (*JWTClaims, error) {
 		return nil, fmt.Errorf("%s,%s", op, "invalid token")
 	}
 	if claims, ok := token.Claims.(*JWTClaims); ok {
-		log.Debug().Any("Token", claims).Msg("DELETE MEEEEEEEEEEEEEEEEEEEEEEeee")
 		return claims, nil
 	} else {
 		return nil, fmt.Errorf("%s:%s", op, "failed conversion of jwt claims")

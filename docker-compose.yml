@@ -1,4 +1,27 @@
 services:
+  app:
+    image: server-token-api
+    build: .
+    container_name: tokenapi
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_PROTOCOL=postgres
+      - DB_USER=server
+      - DB_PASSWORD=secret
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=users
+      - DB_OPTIONS=sslmode=disable
+      - EXTERNAL_API_URL=https://tokenapi
+      - ENV=local
+      - ADDRESS=:8080
+      - TIMEOUT=4s
+      - IDLE_TIMEOUT=60s
+
   db:
     image: postgres:17
     container_name: postgres_db
@@ -6,16 +29,13 @@ services:
       POSTGRES_USER: server
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: users
-    ports:
-      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U server -d users"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - mynetwork
-
-networks:
-  mynetwork:
-    driver: bridge
 
 volumes:
   postgres_data:

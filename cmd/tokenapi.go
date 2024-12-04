@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -40,7 +41,7 @@ func main() {
 	}
 
 	//TODO: init config
-	err := godotenv.Load("./configs/configuration.env")
+	err := loadEnv()
 	if err != nil {
 		log.Error().Err(err).Msg("don't found configuration")
 		os.Exit(1)
@@ -90,4 +91,38 @@ func main() {
 	}
 
 	log.Error().Msg("Program ended")
+}
+
+func loadEnv() error {
+	const op = "cmd.loadEnv()"
+	err := godotenv.Load("./configs/configuration.env")
+	if err != nil {
+		return fmt.Errorf("%s:%s", op, "failed load env file")
+	}
+	// next is the code for the case when it is launched outside the container
+	// serverMail := os.Getenv("FROM_EMAIL_ADRESS")
+	// if serverMail == "" {
+	// 	fmt.Println("Enter the server's email address, like  example@mail.ru")
+	// 	_, err = fmt.Scanln(&serverMail)
+	// 	if err != nil {
+	// 		return fmt.Errorf("%s:%s", op, "Mail couldn`t be scan")
+	// 	}
+	// 	err = os.Setenv("FROM_EMAIL_ADRESS", serverMail)
+	// 	if err != nil {
+	// 		return fmt.Errorf("%s:%s", op, "Failed set mail to env")
+	// 	}
+	// }
+	// password := os.Getenv("SMTP_PASSWORD")
+	// if password == "" {
+	// 	fmt.Println("Enter the email password for external services")
+	// 	_, err = fmt.Scanln(&password)
+	// 	if err != nil {
+	// 		return fmt.Errorf("%s:%s", op, "Password couldn`t be scan")
+	// 	}
+	// 	err = os.Setenv("SMTP_PASSWORD", password)
+	// 	if err != nil {
+	// 		return fmt.Errorf("%s:%s", op, "Failed set smtp password to env")
+	// 	}
+	// }
+	return nil
 }

@@ -128,6 +128,24 @@ func (h *TokenRefresh) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debug().Msgf("Refresh Token exist in DB, %s", *refHash)
 
+	//
+	if refreshToken.Id != accessToken.Id {
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Access token was issued not  for this  refresh token")
+
+		w.WriteHeader(http.StatusBadRequest) // 400
+		render.JSON(w, r, models.StatusError("invalid access token"))
+		return
+	}
+
+	if refreshToken.ExpiresAt < time.Now().Unix() {
+		logs.Error().AnErr(lib.ErrReader(err)).Msg("Refresh token is expired")
+
+		w.WriteHeader(http.StatusBadRequest) // 400
+		render.JSON(w, r, models.StatusError("invalid refresh token"))
+		return
+	}
+	//
+
 	err = CheckRefHash(*refHash, refreshDecoded)
 	if err != nil {
 		logs.Error().AnErr(lib.ErrReader(err)).Msg("Refresh token hash not valid")

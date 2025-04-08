@@ -1,3 +1,4 @@
+
 services:
   app:
     image: server-token-api
@@ -9,26 +10,25 @@ services:
       db:
         condition: service_healthy
     environment:
-      - DB_PROTOCOL=postgres
-      - DB_USER=server
-      - DB_PASSWORD=secret
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=users
-      - DB_OPTIONS=sslmode=disable
-      - EXTERNAL_API_URL=https://tokenapi
-      - ENV=local
-      - ADDRESS=:8080
-      - TIMEOUT=4s
-      - IDLE_TIMEOUT=60s
-
+      - DB_PROTOCOL=${DB_PROTOCOL}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}  
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_OPTIONS=${DB_OPTIONS}
+      - EXTERNAL_API_URL=${EXTERNAL_API_URL}
+      - ENV=${ENV}
+      - ADDRESS=${ADDRESS}
+      - TIMEOUT=${TIMEOUT}  
+      - IDLE_TIMEOUT=${IDLE_TIMEOUT}
   db:
     image: postgres:17
     container_name: postgres_db
     environment:
-      POSTGRES_USER: server
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: users
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U server -d users"]
       interval: 10s

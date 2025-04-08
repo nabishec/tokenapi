@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 
 	"time"
@@ -13,8 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var SigningKey = []byte("TokenApi")
-var ErrAccessTokenExpired = fmt.Errorf("token epired")
+var SigningKey = []byte(os.Getenv("SIGNING_KEY"))
+var ErrAccessTokenExpired = fmt.Errorf("token expired")
 
 type JWTClaims struct {
 	UserIP string `json:"user_ip"`

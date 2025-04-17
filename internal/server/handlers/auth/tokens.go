@@ -46,7 +46,12 @@ func CreateAccessToken(userGUID string, userIP string) (string, string, error) {
 
 func CreateRefreshToken(userIP string) (string, error) {
 	const op = "internal.server.handlers.auth.CreateRefreshToken()"
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, JWTClaims{UserIP: userIP})
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, JWTClaims{
+		userIP,
+		jwt.StandardClaims{
+			Id: uuid.NewString(),
+		},
+	})
 	tokenString, err := token.SignedString(SigningKey)
 	if err != nil {
 		return "", fmt.Errorf("%s:%w", op, err)

@@ -43,8 +43,8 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 	const op = "internal.server.handlers.auth.ReturnToken()"
 	logs := log.With().Str("fn", op).Logger()
 	logs.Info().Msg("Request for the issuance of tokens has been received")
-	userGUID := r.URL.Query().Get("client_id")
-	if userGUID == "" {
+	userGUID, err := uuid.Parse(r.URL.Query().Get("client_id"))
+	if userGUID == uuid.Nil || err != nil {
 		logs.Error().Msg("Failed to receive user GUID")
 
 		w.WriteHeader(http.StatusBadRequest) // 400
@@ -63,7 +63,7 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 	}
 	logs.Debug().Msgf("IP was defined as - %s", userIP)
 
-	accessToken, jti, err := CreateAccessToken(userGUID, userIP)
+	accessToken, jti, err := CreateAccessToken(userGUID.String(), userIP)
 	if err != nil {
 		logs.Error().AnErr(lib.ErrReader(err)).Msg("Failed to create access-token")
 
@@ -94,7 +94,7 @@ func (h *TokenIssuance) ReturnToken(w http.ResponseWriter, r *http.Request) {
 	logs.Debug().Msgf("Refresh hash for user - %s created successfull", userGUID)
 
 	expRef := time.Now().Unix() + 86400 // one day
-	err = h.postToken.AddNewToken(refHash, uuid.MustParse(userGUID), userIP, jti, time.Unix(expRef, 0))
+	err = h.postToken.AddNewToken(refHash, userGUID, userIP, jti, time.Unix(expRef, 0))
 	if err != nil {
 		if err == db.ErrUserNotExists {
 			log.Error().Msgf("User id - %s not found", userGUID)

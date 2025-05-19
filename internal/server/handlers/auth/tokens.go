@@ -120,7 +120,7 @@ func JWTTokenValid(tokenString string) (*JWTClaims, error) {
 				return nil, fmt.Errorf("%s:%s", op, "failed conversion of jwt claims")
 			}
 		}
-		return nil, err
+		return nil, fmt.Errorf("%s:%s", op, "bad jwt token")
 	}
 	if !token.Valid {
 		return nil, fmt.Errorf("%s,%s", op, "invalid token")
